@@ -47,7 +47,7 @@ def generate_compose(num_devices: int, mqtt_enabled: bool = True, output_file: s
     # Add MQTT broker service if enabled
     if mqtt_enabled:
         compose_config['services']['mqtt-broker'] = {
-            'image': 'eclipse-mosquitto:2.0',
+            'image': 'eclipse-mosquitto:1.6',
             'container_name': 'mqtt-broker',
             'hostname': 'mqtt-broker',
             'ports': [
@@ -60,8 +60,7 @@ def generate_compose(num_devices: int, mqtt_enabled: bool = True, output_file: s
                 'mosquitto_logs:/mosquitto/log'
             ],
             'networks': ['edge-network'],
-            'restart': 'unless-stopped',
-            'command': 'mosquitto -c /mosquitto/config/mosquitto.conf'
+            'restart': 'unless-stopped'
         }
         
         # Add MQTT volumes
@@ -80,7 +79,7 @@ def generate_compose(num_devices: int, mqtt_enabled: bool = True, output_file: s
                 }
             },
             'image': 'iot-device-simulator:latest',
-            'command': ['echo', 'This service builds the shared image for Raspberry Pi simulation']
+            'command': ['echo', 'This service builds the shared image for edge device simulation']
         }
     
     # Generate service for each device

@@ -27,7 +27,7 @@ services:
     image: iot-device-simulator:latest
     command:
     - echo
-    - This service builds the shared image for Raspberry Pi simulation
+    - This service builds the shared image for edge device simulation
   edge-device-01:
     image: iot-device-simulator:latest
     container_name: edge-device-01
