@@ -1,0 +1,23 @@
+{
+  "device_type": "raspberry-pi-3",
+  "sensors": [
+    {
+      "type": "temperature",
+      "unit": "celsius",
+      "enabled": true
+    },
+    {
+      "type": "humidity",
+      "unit": "percent",
+      "enabled": true
+    },
+    {
+      "type": "motion",
+      "enabled": true
+    }
+  ],
+  "network": {
+    "internal_network": "edge-network"
+  },
+  "notes": "This configuration is shared across all devices. Device-specific settings like DEVICE_ID and DEVICE_NAME are passed via environment variables."
+}
