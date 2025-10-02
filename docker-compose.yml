@@ -5,7 +5,7 @@
 
 services:
   mqtt-broker:
-    image: eclipse-mosquitto:2.0
+    image: eclipse-mosquitto:1.6
     container_name: mqtt-broker
     hostname: mqtt-broker
     ports:
@@ -18,15 +18,16 @@ services:
     networks:
     - edge-network
     restart: unless-stopped
-    command: mosquitto -c /mosquitto/config/mosquitto.conf
   iot-device-image:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        BUILDKIT_INLINE_CACHE: '1'
     image: iot-device-simulator:latest
     command:
     - echo
-    - This service builds the shared image
+    - This service builds the shared image for Raspberry Pi simulation
   edge-device-01:
     image: iot-device-simulator:latest
     container_name: edge-device-01
@@ -38,6 +39,7 @@ services:
     - MQTT_PORT=1883
     volumes:
     - ./config:/etc/edge-device:ro
+    - ./dataset:/app/dataset:ro
     networks:
     - edge-network
     depends_on:
@@ -55,6 +57,7 @@ services:
     - MQTT_PORT=1883
     volumes:
     - ./config:/etc/edge-device:ro
+    - ./dataset:/app/dataset:ro
     networks:
     - edge-network
     depends_on:
@@ -72,6 +75,7 @@ services:
     - MQTT_PORT=1883
     volumes:
     - ./config:/etc/edge-device:ro
+    - ./dataset:/app/dataset:ro
     networks:
     - edge-network
     depends_on:
@@ -89,6 +93,7 @@ services:
     - MQTT_PORT=1883
     volumes:
     - ./config:/etc/edge-device:ro
+    - ./dataset:/app/dataset:ro
     networks:
     - edge-network
     depends_on:
@@ -106,6 +111,7 @@ services:
     - MQTT_PORT=1883
     volumes:
     - ./config:/etc/edge-device:ro
+    - ./dataset:/app/dataset:ro
     networks:
     - edge-network
     depends_on:

@@ -1,3 +1,5 @@
+# Ultra-fast build - specific versions with ARM wheels available
 paho-mqtt==1.6.1
-pandas==2.0.3
+pandas==1.5.3
 python-dotenv==1.0.0
+numpy==1.24.3

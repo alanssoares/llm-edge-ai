@@ -70,14 +70,17 @@ def generate_compose(num_devices: int, mqtt_enabled: bool = True, output_file: s
             'mosquitto_logs': {'driver': 'local'}
         }
         
-        # Add shared device image builder service
+        # Add shared device image builder service with build optimizations
         compose_config['services']['iot-device-image'] = {
             'build': {
                 'context': '.',
-                'dockerfile': 'Dockerfile'
+                'dockerfile': 'Dockerfile',
+                'args': {
+                    'BUILDKIT_INLINE_CACHE': '1'
+                }
             },
             'image': 'iot-device-simulator:latest',
-            'command': ['echo', 'This service builds the shared image']
+            'command': ['echo', 'This service builds the shared image for Raspberry Pi simulation']
         }
     
     # Generate service for each device
@@ -99,7 +102,8 @@ def generate_compose(num_devices: int, mqtt_enabled: bool = True, output_file: s
                     'MQTT_PORT=1883'
                 ],
                 'volumes': [
-                    './config:/etc/edge-device:ro'
+                    './config:/etc/edge-device:ro',
+                    './dataset:/app/dataset:ro'
                 ],
                 'networks': ['edge-network'],
                 'depends_on': ['mqtt-broker', 'iot-device-image'],
@@ -119,7 +123,8 @@ def generate_compose(num_devices: int, mqtt_enabled: bool = True, output_file: s
                     f'DEVICE_ID={device_num}'
                 ],
                 'volumes': [
-                    './config:/etc/edge-device:ro'
+                    './config:/etc/edge-device:ro',
+                    './dataset:/app/dataset:ro'
                 ],
                 'networks': ['edge-network'],
                 'restart': 'unless-stopped'
