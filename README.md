@@ -3,61 +3,84 @@ A simulation of local devices as raspberry phi with sensors
 
 ## Overview
 
-This project simulates a network of 10 Raspberry Pi 3 devices using Docker Compose. Each device runs in its own container on an internal network, allowing for testing and development of edge computing scenarios.
+This project simulates a scalable network of Raspberry Pi 3 devices using Docker Compose. The setup can scale from a few devices to thousands, making it perfect for testing and development of edge computing scenarios.
 
-## Architecture
+## Key Features
 
-- **10 Edge Devices**: Simulated Raspberry Pi 3 devices (edge-device-01 through edge-device-10)
+- **Scalable Architecture**: Easily configure 10 to 1000+ devices
+- **Dynamic Generation**: Python script generates docker-compose.yml for any number of devices
+- **Shared Configuration**: Single configuration file shared across all devices
 - **Internal Network**: All devices connected via a bridge network (172.20.0.0/16)
-- **Individual Configuration**: Each device has its own configuration folder
+- **No Per-Device Folders**: Simplified structure that scales efficiently
 
 ## Prerequisites
 
 - Docker Engine (version 20.10 or later)
 - Docker Compose (version 1.29 or later)
-- At least 4GB of available RAM
-- At least 10GB of free disk space
+- Python 3 (for generating docker-compose.yml)
+- PyYAML: `pip3 install pyyaml`
 
 ## Quick Start
 
-1. **Build and start all devices:**
-   ```bash
-   docker-compose up -d
-   ```
+### 1. Generate docker-compose.yml
 
-2. **View running devices:**
-   ```bash
-   docker-compose ps
-   ```
+Generate a configuration with your desired number of devices:
 
-3. **Check logs of a specific device:**
-   ```bash
-   docker-compose logs edge-device-01
-   ```
+```bash
+# Generate with 10 devices (default)
+python3 generate-compose.py --devices 10
 
-4. **Access a device shell:**
-   ```bash
-   docker exec -it edge-device-01 /bin/bash
-   ```
+# Generate with 50 devices
+python3 generate-compose.py --devices 50
 
-5. **Stop all devices:**
-   ```bash
-   docker-compose down
-   ```
+# Generate with 1000 devices
+python3 generate-compose.py --devices 1000
+```
 
-## Device Configuration
+Or use the Makefile:
 
-Each device has its own configuration folder (`edge-device-01` through `edge-device-10`) containing:
+```bash
+# Generate with 10 devices
+make generate
 
-- `config.json`: Main device configuration
-- `README.md`: Device-specific documentation
+# Generate with 100 devices
+make generate DEVICES=100
+```
 
-### Configuration Structure
+### 2. Start the devices
+
+```bash
+# Start all devices
+docker compose up -d
+
+# Or use make
+make up
+```
+
+### 3. Verify and interact
+
+```bash
+# View running devices
+docker compose ps
+
+# Check logs of a specific device
+docker compose logs edge-device-01
+
+# Access a device shell
+docker exec -it edge-device-01 /bin/bash
+
+# Stop all devices
+docker compose down
+```
+
+## Configuration
+
+### Shared Configuration
+
+All devices share the same base configuration located in `config/config.json`:
 
 ```json
 {
-  "device_id": "01",
-  "device_name": "edge-device-01",
   "device_type": "raspberry-pi-3",
   "sensors": [
     {
@@ -76,11 +99,18 @@ Each device has its own configuration folder (`edge-device-01` through `edge-dev
     }
   ],
   "network": {
-    "hostname": "edge-device-01",
     "internal_network": "edge-network"
   }
 }
 ```
+
+### Device-Specific Settings
+
+Each device receives unique identifiers via environment variables:
+- `DEVICE_NAME`: Unique device name (e.g., edge-device-01)
+- `DEVICE_ID`: Unique device ID (e.g., 01)
+
+These are automatically set when generating the docker-compose.yml.
 
 ## Network Configuration
 
@@ -92,56 +122,104 @@ All devices are connected to the `edge-network` internal network:
 
 ### Testing Network Connectivity
 
-From within any device, you can ping other devices:
-
 ```bash
 docker exec -it edge-device-01 ping edge-device-02
 ```
 
+## Scaling
+
+### Small Scale (10-100 devices)
+Perfect for development and testing:
+```bash
+make generate DEVICES=50
+make up
+```
+
+### Medium Scale (100-500 devices)
+Suitable for integration testing:
+```bash
+make generate DEVICES=200
+make up
+```
+
+### Large Scale (500-1000+ devices)
+For stress testing and performance evaluation:
+```bash
+make generate DEVICES=1000
+make up
+```
+
+**Note**: Large numbers of containers require significant system resources. Monitor Docker resource usage.
+
 ## Management Commands
 
-### Start specific devices:
+### Using Makefile
+
 ```bash
-docker-compose up -d edge-device-01 edge-device-02
+make help                    # Show all available commands
+make generate DEVICES=N      # Generate docker-compose.yml with N devices
+make build                   # Build all edge device images
+make up                      # Start all edge devices
+make down                    # Stop all edge devices
+make restart                 # Restart all edge devices
+make logs                    # View logs from all devices
+make ps                      # Show status of all devices
+make clean                   # Remove all containers and images
 ```
 
-### Restart a device:
-```bash
-docker-compose restart edge-device-01
-```
+### Using Docker Compose Directly
 
-### View real-time logs:
 ```bash
-docker-compose logs -f edge-device-01
-```
+# Start specific devices
+docker compose up -d edge-device-01 edge-device-02
 
-### Scale devices (add more):
-To add more devices, edit `docker-compose.yml` and add new service definitions following the existing pattern.
+# Restart a device
+docker compose restart edge-device-01
+
+# View real-time logs
+docker compose logs -f edge-device-01
+
+# Stop specific devices
+docker compose stop edge-device-01
+```
 
 ## Customization
 
-### Modifying Device Configuration
+### Modifying Shared Configuration
 
-1. Edit the configuration files in the respective `edge-device-XX` folder
-2. Restart the specific device:
+1. Edit `config/config.json` with your desired settings
+2. Restart devices to apply changes:
    ```bash
-   docker-compose restart edge-device-01
+   make restart
    ```
+
+### Customizing Device Generation
+
+Edit `generate-compose.py` to customize:
+- Resource limits (CPU, memory)
+- Additional environment variables
+- Different volume mounts
+- Custom networks or security settings
 
 ### Adding Custom Scripts
 
-You can add custom scripts to device folders, and they will be available at `/etc/edge-device/` inside the containers.
+Add scripts to the `config/` directory. They will be available at `/etc/edge-device/` inside all containers (mounted read-only).
 
 ## Troubleshooting
 
 ### Containers not starting
 - Check Docker resources: `docker system df`
-- Verify Docker Compose version: `docker-compose --version`
-- Check logs: `docker-compose logs`
+- Verify Docker Compose version: `docker compose version`
+- Check logs: `docker compose logs`
+- Reduce number of devices if running into resource limits
 
 ### Network issues
 - Verify network exists: `docker network ls | grep edge-network`
 - Check network configuration: `docker network inspect edge-network`
+
+### Generation script issues
+- Ensure PyYAML is installed: `pip3 install pyyaml`
+- Check Python version: `python3 --version` (requires 3.6+)
 
 ## License
 

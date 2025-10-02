@@ -1,6 +1,4 @@
 {
-  "device_id": "01",
-  "device_name": "edge-device-01",
   "device_type": "raspberry-pi-3",
   "sensors": [
     {
@@ -19,8 +17,7 @@
     }
   ],
   "network": {
-    "hostname": "edge-device-01",
     "internal_network": "edge-network"
   },
-  "created_at": "2025-10-01T23:54:37Z"
+  "notes": "This configuration is shared across all devices. Device-specific settings like DEVICE_ID and DEVICE_NAME are passed via environment variables."
 }
