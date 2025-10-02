@@ -1,5 +1,6 @@
+# syntax=docker/dockerfile:1.3
 # Dockerfile for Raspberry Pi 3 simulation
-FROM arm32v7/debian:bullseye-slim
+FROM --platform=linux/arm/v7 arm32v7/debian:bullseye-slim
 
 # Set environment variables
 ENV DEBIAN_FRONTEND=noninteractive
@@ -20,7 +21,7 @@ RUN apt-get update && apt-get install -y \
 RUN mkdir -p /etc/edge-device
 
 # Copy device configuration if exists
-COPY config/ /etc/edge-device/ 2>/dev/null || true
+COPY config/ /etc/edge-device/
 
 # Create a startup script
 RUN echo '#!/bin/bash\n\

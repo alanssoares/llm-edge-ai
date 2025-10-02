@@ -94,7 +94,13 @@ All devices share the same base configuration located in `config/config.json`:
       "enabled": true
     },
     {
-      "type": "motion",
+      "type": "pressure",
+      "unit": "hPa",
+      "enabled": true
+    },
+    {
+      "type": "light",
+      "unit": "lux",
       "enabled": true
     }
   ],
