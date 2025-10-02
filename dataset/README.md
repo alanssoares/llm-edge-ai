@@ -5,6 +5,8 @@
 ### Context
 Environmental sensor telemetry data, detailed in the blog post, [Getting Started with IoT Analytics on AWS](https://towardsdatascience.com/getting-started-with-iot-analytics-on-aws), published on Towards Data Science.
 
+**Dataset Source:** [Environmental Sensor Data - Kaggle](https://www.kaggle.com/datasets/garystafford/environmental-sensor-data-132k?resource=download)
+
 ### Content
 The data was generated from a series of three identical, custom-built, breadboard-based sensor arrays. Each array was connected to a Raspberry Pi device. Each of the three IoT devices was placed in a physical location with varied environmental conditions.
 
