@@ -1,0 +1,157 @@
+services:
+  edge-device-01:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: edge-device-01
+    hostname: edge-device-01
+    environment:
+      - DEVICE_NAME=edge-device-01
+      - DEVICE_ID=01
+    volumes:
+      - ./edge-device-01:/etc/edge-device
+    networks:
+      - edge-network
+    restart: unless-stopped
+
+  edge-device-02:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: edge-device-02
+    hostname: edge-device-02
+    environment:
+      - DEVICE_NAME=edge-device-02
+      - DEVICE_ID=02
+    volumes:
+      - ./edge-device-02:/etc/edge-device
+    networks:
+      - edge-network
+    restart: unless-stopped
+
+  edge-device-03:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: edge-device-03
+    hostname: edge-device-03
+    environment:
+      - DEVICE_NAME=edge-device-03
+      - DEVICE_ID=03
+    volumes:
+      - ./edge-device-03:/etc/edge-device
+    networks:
+      - edge-network
+    restart: unless-stopped
+
+  edge-device-04:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: edge-device-04
+    hostname: edge-device-04
+    environment:
+      - DEVICE_NAME=edge-device-04
+      - DEVICE_ID=04
+    volumes:
+      - ./edge-device-04:/etc/edge-device
+    networks:
+      - edge-network
+    restart: unless-stopped
+
+  edge-device-05:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: edge-device-05
+    hostname: edge-device-05
+    environment:
+      - DEVICE_NAME=edge-device-05
+      - DEVICE_ID=05
+    volumes:
+      - ./edge-device-05:/etc/edge-device
+    networks:
+      - edge-network
+    restart: unless-stopped
+
+  edge-device-06:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: edge-device-06
+    hostname: edge-device-06
+    environment:
+      - DEVICE_NAME=edge-device-06
+      - DEVICE_ID=06
+    volumes:
+      - ./edge-device-06:/etc/edge-device
+    networks:
+      - edge-network
+    restart: unless-stopped
+
+  edge-device-07:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: edge-device-07
+    hostname: edge-device-07
+    environment:
+      - DEVICE_NAME=edge-device-07
+      - DEVICE_ID=07
+    volumes:
+      - ./edge-device-07:/etc/edge-device
+    networks:
+      - edge-network
+    restart: unless-stopped
+
+  edge-device-08:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: edge-device-08
+    hostname: edge-device-08
+    environment:
+      - DEVICE_NAME=edge-device-08
+      - DEVICE_ID=08
+    volumes:
+      - ./edge-device-08:/etc/edge-device
+    networks:
+      - edge-network
+    restart: unless-stopped
+
+  edge-device-09:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: edge-device-09
+    hostname: edge-device-09
+    environment:
+      - DEVICE_NAME=edge-device-09
+      - DEVICE_ID=09
+    volumes:
+      - ./edge-device-09:/etc/edge-device
+    networks:
+      - edge-network
+    restart: unless-stopped
+
+  edge-device-10:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: edge-device-10
+    hostname: edge-device-10
+    environment:
+      - DEVICE_NAME=edge-device-10
+      - DEVICE_ID=10
+    volumes:
+      - ./edge-device-10:/etc/edge-device
+    networks:
+      - edge-network
+    restart: unless-stopped
+
+networks:
+  edge-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
