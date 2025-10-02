@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """
-Generate docker-compose.yml with configurable number of edge devices.
+Generate docker-compose.yml with configurable number of IoT edge devices with MQTT telemetry.
 
 Usage:
     python3 generate-compose.py --devices 10
     python3 generate-compose.py --devices 1000
+    python3 generate-compose.py --devices 5 --mqtt-enabled
 """
 
 import argparse
@@ -12,11 +13,25 @@ import yaml
 from pathlib import Path
 
 
-def generate_compose(num_devices: int, output_file: str = "docker-compose.yml"):
+def get_device_id_from_dataset(device_index: int) -> str:
+    """Get realistic device IDs from the actual dataset."""
+    # Real device IDs from the IoT telemetry dataset
+    real_device_ids = [
+        "00:0f:00:70:91:0a",  # stable conditions, cooler and more humid
+        "1c:bf:ce:15:ec:4d",  # highly variable temperature and humidity  
+        "b8:27:eb:bf:9d:51"   # stable conditions, warmer and dryer
+    ]
+    
+    # Cycle through real device IDs for realistic simulation
+    return real_device_ids[device_index % len(real_device_ids)]
+
+
+def generate_compose(num_devices: int, mqtt_enabled: bool = True, output_file: str = "docker-compose.yml"):
     """Generate docker-compose.yml with specified number of devices."""
     
     compose_config = {
         'services': {},
+        'volumes': {},
         'networks': {
             'edge-network': {
                 'driver': 'bridge',
@@ -29,57 +44,132 @@ def generate_compose(num_devices: int, output_file: str = "docker-compose.yml"):
         }
     }
     
-    # Generate service for each device
-    for i in range(1, num_devices + 1):
-        device_id = f"{i:02d}" if num_devices < 100 else f"{i:03d}" if num_devices < 1000 else f"{i:04d}"
-        device_name = f"edge-device-{device_id}"
+    # Add MQTT broker service if enabled
+    if mqtt_enabled:
+        compose_config['services']['mqtt-broker'] = {
+            'image': 'eclipse-mosquitto:2.0',
+            'container_name': 'mqtt-broker',
+            'hostname': 'mqtt-broker',
+            'ports': [
+                '1883:1883',    # MQTT port
+                '9001:9001'     # WebSocket port
+            ],
+            'volumes': [
+                './config/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro',
+                'mosquitto_data:/mosquitto/data',
+                'mosquitto_logs:/mosquitto/log'
+            ],
+            'networks': ['edge-network'],
+            'restart': 'unless-stopped',
+            'command': 'mosquitto -c /mosquitto/config/mosquitto.conf'
+        }
         
-        service_config = {
+        # Add MQTT volumes
+        compose_config['volumes'] = {
+            'mosquitto_data': {'driver': 'local'},
+            'mosquitto_logs': {'driver': 'local'}
+        }
+        
+        # Add shared device image builder service
+        compose_config['services']['iot-device-image'] = {
             'build': {
                 'context': '.',
                 'dockerfile': 'Dockerfile'
             },
-            'container_name': device_name,
-            'hostname': device_name,
-            'environment': [
-                f'DEVICE_NAME={device_name}',
-                f'DEVICE_ID={device_id}'
-            ],
-            'volumes': [
-                './config:/etc/edge-device:ro'
-            ],
-            'networks': ['edge-network'],
-            'restart': 'unless-stopped'
+            'image': 'iot-device-simulator:latest',
+            'command': ['echo', 'This service builds the shared image']
         }
+    
+    # Generate service for each device
+    for i in range(1, num_devices + 1):
+        device_num = f"{i:02d}" if num_devices < 100 else f"{i:03d}" if num_devices < 1000 else f"{i:04d}"
+        device_name = f"edge-device-{device_num}"
+        
+        if mqtt_enabled:
+            # Use shared image with realistic device IDs for MQTT simulation
+            device_id = get_device_id_from_dataset(i - 1)
+            service_config = {
+                'image': 'iot-device-simulator:latest',
+                'container_name': device_name,
+                'hostname': device_name,
+                'environment': [
+                    f'DEVICE_NAME={device_name}',
+                    f'DEVICE_ID={device_id}',
+                    'MQTT_BROKER=mqtt-broker',
+                    'MQTT_PORT=1883'
+                ],
+                'volumes': [
+                    './config:/etc/edge-device:ro'
+                ],
+                'networks': ['edge-network'],
+                'depends_on': ['mqtt-broker', 'iot-device-image'],
+                'restart': 'unless-stopped'
+            }
+        else:
+            # Original configuration without MQTT
+            service_config = {
+                'build': {
+                    'context': '.',
+                    'dockerfile': 'Dockerfile'
+                },
+                'container_name': device_name,
+                'hostname': device_name,
+                'environment': [
+                    f'DEVICE_NAME={device_name}',
+                    f'DEVICE_ID={device_num}'
+                ],
+                'volumes': [
+                    './config:/etc/edge-device:ro'
+                ],
+                'networks': ['edge-network'],
+                'restart': 'unless-stopped'
+            }
         
         compose_config['services'][device_name] = service_config
     
     # Write to file with header comment
     with open(output_file, 'w') as f:
         f.write(f"# This file is generated by generate-compose.py\n")
-        f.write(f"# To regenerate: python3 generate-compose.py --devices {num_devices}\n")
-        f.write(f"# Number of devices: {num_devices}\n\n")
+        f.write(f"# To regenerate: python3 generate-compose.py --devices {num_devices}")
+        if mqtt_enabled:
+            f.write(" --mqtt-enabled")
+        f.write(f"\n# Number of devices: {num_devices}\n")
+        if mqtt_enabled:
+            f.write("# MQTT telemetry: enabled\n")
+        f.write("\n")
         yaml.dump(compose_config, f, default_flow_style=False, sort_keys=False)
     
-    print(f"✅ Generated {output_file} with {num_devices} edge devices")
+    mqtt_status = "with MQTT telemetry" if mqtt_enabled else "without MQTT"
+    print(f"✅ Generated {output_file} with {num_devices} edge devices {mqtt_status}")
     return output_file
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Generate docker-compose.yml for edge device simulation"
+        description="Generate docker-compose.yml for IoT edge device simulation with MQTT telemetry"
     )
     parser.add_argument(
         '--devices',
         type=int,
-        default=10,
-        help='Number of edge devices to create (default: 10)'
+        default=5,
+        help='Number of edge devices to create (default: 5)'
     )
     parser.add_argument(
         '--output',
         type=str,
         default='docker-compose.yml',
         help='Output file name (default: docker-compose.yml)'
+    )
+    parser.add_argument(
+        '--mqtt-enabled',
+        action='store_true',
+        default=True,
+        help='Enable MQTT telemetry simulation (default: enabled)'
+    )
+    parser.add_argument(
+        '--no-mqtt',
+        action='store_true',
+        help='Disable MQTT telemetry (use original simple device simulation)'
     )
     
     args = parser.parse_args()
@@ -94,11 +184,23 @@ def main():
             print("Cancelled")
             return
     
-    generate_compose(args.devices, args.output)
+    # Determine MQTT mode
+    mqtt_enabled = not args.no_mqtt
+    
+    generate_compose(args.devices, mqtt_enabled, args.output)
+    
     print(f"\n📋 Next steps:")
     print(f"   1. Review the generated {args.output}")
-    print(f"   2. Customize config/config.json if needed")
-    print(f"   3. Run: docker compose up -d")
+    if mqtt_enabled:
+        print(f"   2. Ensure config/mosquitto.conf exists for MQTT broker")
+        print(f"   3. Run: docker-compose up --build")
+        print(f"   4. Monitor telemetry: python3 mqtt_consumer.py")
+        print(f"\n🔗 MQTT Topics: iot/telemetry/+")
+        print(f"🔗 MQTT Broker: localhost:1883")
+    else:
+        print(f"   2. Customize config/config.json if needed")
+        print(f"   3. Run: docker-compose up --build")
+    print(f"\n📊 Generated {args.devices} devices {'with MQTT telemetry' if mqtt_enabled else 'without MQTT'}")
 
 
 if __name__ == '__main__':
