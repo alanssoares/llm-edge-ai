@@ -34,7 +34,7 @@ RUN pip3 install --no-cache-dir --upgrade pip \
     && rm requirements.txt
 
 # Copy application files
-COPY device_simulator.py .
+COPY src/device_simulator.py .
 COPY config/ /etc/edge-device/
 
 # Switch to non-root user

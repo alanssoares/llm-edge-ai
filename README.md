@@ -28,23 +28,13 @@ Generate a configuration with your desired number of devices:
 
 ```bash
 # Generate with 10 devices (default)
-python3 generate-compose.py --devices 10
+python3 scripts/generate-compose.py --devices 10
 
 # Generate with 50 devices
-python3 generate-compose.py --devices 50
+python3 scripts/generate-compose.py --devices 50
 
 # Generate with 1000 devices
-python3 generate-compose.py --devices 1000
-```
-
-Or use the Makefile:
-
-```bash
-# Generate with 10 devices
-make generate
-
-# Generate with 100 devices
-make generate DEVICES=100
+python3 scripts/generate-compose.py --devices 1000
 ```
 
 ### 2. Start the devices
@@ -52,9 +42,6 @@ make generate DEVICES=100
 ```bash
 # Start all devices
 docker compose up -d
-
-# Or use make
-make up
 ```
 
 ### 3. Verify and interact
@@ -137,43 +124,29 @@ docker exec -it edge-device-01 ping edge-device-02
 ### Small Scale (10-100 devices)
 Perfect for development and testing:
 ```bash
-make generate DEVICES=50
-make up
+python3 scripts/generate-compose.py --devices 50
+docker compose up -d
 ```
 
 ### Medium Scale (100-500 devices)
 Suitable for integration testing:
 ```bash
-make generate DEVICES=200
-make up
+python3 scripts/generate-compose.py --devices 200
+docker compose up -d
 ```
 
 ### Large Scale (500-1000+ devices)
 For stress testing and performance evaluation:
 ```bash
-make generate DEVICES=1000
-make up
+python3 scripts/generate-compose.py --devices 1000
+docker compose up -d
 ```
 
 **Note**: Large numbers of containers require significant system resources. Monitor Docker resource usage.
 
 ## Management Commands
 
-### Using Makefile
-
-```bash
-make help                    # Show all available commands
-make generate DEVICES=N      # Generate docker-compose.yml with N devices
-make build                   # Build all edge device images
-make up                      # Start all edge devices
-make down                    # Stop all edge devices
-make restart                 # Restart all edge devices
-make logs                    # View logs from all devices
-make ps                      # Show status of all devices
-make clean                   # Remove all containers and images
-```
-
-### Using Docker Compose Directly
+### Using Docker Compose
 
 ```bash
 # Start specific devices
@@ -189,6 +162,22 @@ docker compose logs -f edge-device-01
 docker compose stop edge-device-01
 ```
 
+## Project Structure
+
+```
+llm-edge-ai/
+├── src/                      # Source code
+│   ├── device_simulator.py   # IoT device simulator
+│   ├── mqtt_consumer.py      # MQTT telemetry consumer
+│   └── generate_compose.py   # Docker compose generator
+├── tests/                    # Unit tests
+├── scripts/                  # Entry point scripts
+├── config/                   # Configuration files
+├── dataset/                  # IoT telemetry dataset
+├── docs/                     # Additional documentation
+└── docker-compose.yml        # Generated compose file
+```
+
 ## Customization
 
 ### Modifying Shared Configuration
@@ -196,12 +185,12 @@ docker compose stop edge-device-01
 1. Edit `config/config.json` with your desired settings
 2. Restart devices to apply changes:
    ```bash
-   make restart
+   docker compose restart
    ```
 
 ### Customizing Device Generation
 
-Edit `generate-compose.py` to customize:
+Edit `src/generate_compose.py` to customize:
 - Resource limits (CPU, memory)
 - Additional environment variables
 - Different volume mounts
@@ -210,6 +199,63 @@ Edit `generate-compose.py` to customize:
 ### Adding Custom Scripts
 
 Add scripts to the `config/` directory. They will be available at `/etc/edge-device/` inside all containers (mounted read-only).
+
+## Development
+
+### Running Tests
+
+```bash
+# Install development dependencies
+pip install -r requirements-dev.txt
+
+# Run all tests
+pytest
+
+# Run with coverage
+pytest --cov=src --cov-report=html
+
+# Run specific test file
+pytest tests/test_simulator.py
+```
+
+### Code Formatting
+
+```bash
+# Format code with Black
+black src/ tests/
+
+# Sort imports
+isort src/ tests/
+
+# Check linting
+flake8 src/ tests/
+```
+
+### Environment Variables
+
+Copy `.env.example` to `.env` and customize:
+
+```bash
+cp .env.example .env
+```
+
+Available variables:
+- `DEVICE_NAME`: Device identifier
+- `DEVICE_ID`: MAC address format
+- `MQTT_BROKER`: Broker hostname
+- `MQTT_PORT`: Broker port (default: 1883)
+- `LOG_LEVEL`: Logging level (DEBUG, INFO, WARNING, ERROR)
+
+## Contributing
+
+Contributions are welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+
+## Documentation
+
+- [Architecture](ARCHITECTURE.md) - System architecture and design
+- [MQTT Simulation](docs/MQTT_SIMULATION.md) - MQTT simulation details
+- [Changelog](CHANGELOG.md) - Version history
+- [Contributing](CONTRIBUTING.md) - How to contribute
 
 ## Troubleshooting
 
