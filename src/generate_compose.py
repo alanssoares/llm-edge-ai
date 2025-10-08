@@ -46,7 +46,10 @@ def get_device_id_from_dataset(device_index: int) -> str:
 def generate_compose(
     num_devices: int,
     mqtt_enabled: bool = True,
-    output_file: str = "docker-compose.yml"
+    output_file: str = "docker-compose.yml",
+    enable_llm: bool = False,
+    llm_model: str = "microsoft/Phi-3.5-mini-instruct",
+    llm_devices: List[int] = None
 ) -> str:
     """
     Generate docker-compose.yml with specified number of devices.
@@ -55,11 +58,16 @@ def generate_compose(
         num_devices: Number of edge devices to create
         mqtt_enabled: Whether to enable MQTT telemetry
         output_file: Output filename for the compose file
+        enable_llm: Whether to enable LLM inference on devices
+        llm_model: LLM model name to use
+        llm_devices: List of device indices to enable LLM (1-based). If None, enables on all devices
         
     Returns:
         Path to the generated file
     """
     logger.info(f"Generating docker-compose configuration for {num_devices} devices")
+    if enable_llm:
+        logger.info(f"LLM inference enabled with model: {llm_model}")
     
     compose_config = {
         'services': {},
@@ -121,22 +129,40 @@ def generate_compose(
         device_num = f"{i:02d}" if num_devices < 100 else f"{i:03d}" if num_devices < 1000 else f"{i:04d}"
         device_name = f"edge-device-{device_num}"
         
+        # Check if LLM should be enabled for this device
+        device_has_llm = enable_llm and (llm_devices is None or i in llm_devices)
+        
         if mqtt_enabled:
             # Use shared image with realistic device IDs for MQTT simulation
             device_id = get_device_id_from_dataset(i - 1)
+            
+            # Base environment variables
+            env_vars = [
+                f'DEVICE_NAME={device_name}',
+                f'DEVICE_ID={device_id}',
+                'MQTT_BROKER=mqtt-broker',
+                'MQTT_PORT=1883'
+            ]
+            
+            # Add LLM configuration if enabled for this device
+            if device_has_llm:
+                env_vars.extend([
+                    'ENABLE_LLM=true',
+                    f'LLM_MODEL_NAME={llm_model}',
+                    'LLM_INFERENCE_INTERVAL=5',  # Run inference every 5 messages
+                    'LLM_MAX_LENGTH=512',
+                    'LLM_TEMPERATURE=0.7'
+                ])
+            
             service_config = {
                 'image': 'iot-device-simulator:latest',
                 'container_name': device_name,
                 'hostname': device_name,
-                'environment': [
-                    f'DEVICE_NAME={device_name}',
-                    f'DEVICE_ID={device_id}',
-                    'MQTT_BROKER=mqtt-broker',
-                    'MQTT_PORT=1883'
-                ],
+                'environment': env_vars,
                 'volumes': [
                     './config:/etc/edge-device:ro',
-                    './dataset:/app/dataset:ro'
+                    './dataset:/app/dataset:ro',
+                    f'./metrics/{device_name}:/app/metrics'  # Volume for metrics
                 ],
                 'networks': ['edge-network'],
                 'depends_on': ['mqtt-broker', 'iot-device-image'],
@@ -186,7 +212,7 @@ def generate_compose(
 def main():
     """Main entry point"""
     parser = argparse.ArgumentParser(
-        description="Generate docker-compose.yml for IoT edge device simulation with MQTT telemetry"
+        description="Generate docker-compose.yml for IoT edge device simulation with MQTT telemetry and LLM inference"
     )
     parser.add_argument(
         '--devices',
@@ -211,6 +237,22 @@ def main():
         action='store_true',
         help='Disable MQTT telemetry (use original simple device simulation)'
     )
+    parser.add_argument(
+        '--enable-llm',
+        action='store_true',
+        help='Enable LLM inference on edge devices'
+    )
+    parser.add_argument(
+        '--llm-model',
+        type=str,
+        default='microsoft/Phi-3.5-mini-instruct',
+        help='LLM model to use (default: microsoft/Phi-3.5-mini-instruct)'
+    )
+    parser.add_argument(
+        '--llm-devices',
+        type=str,
+        help='Comma-separated list of device numbers to enable LLM (e.g., "1,3,5"). If not specified, enables on all devices'
+    )
     
     args = parser.parse_args()
     
@@ -227,7 +269,23 @@ def main():
     # Determine MQTT mode
     mqtt_enabled = not args.no_mqtt
     
-    generate_compose(args.devices, mqtt_enabled, args.output)
+    # Parse LLM devices list
+    llm_devices = None
+    if args.llm_devices:
+        try:
+            llm_devices = [int(x.strip()) for x in args.llm_devices.split(',')]
+            logger.info(f"LLM will be enabled on devices: {llm_devices}")
+        except ValueError:
+            parser.error("Invalid --llm-devices format. Use comma-separated numbers (e.g., '1,3,5')")
+    
+    generate_compose(
+        args.devices, 
+        mqtt_enabled, 
+        args.output,
+        enable_llm=args.enable_llm,
+        llm_model=args.llm_model,
+        llm_devices=llm_devices
+    )
     
     print(f"\n📋 Next steps:")
     print(f"   1. Review the generated {args.output}")
@@ -235,12 +293,30 @@ def main():
         print(f"   2. Ensure config/mosquitto.conf exists for MQTT broker")
         print(f"   3. Run: docker compose up --build")
         print(f"   4. Monitor telemetry: python3 mqtt_consumer.py")
-        print(f"\n🔗 MQTT Topics: iot/telemetry/+")
+        print(f"\n🔗 MQTT Topics:")
+        print(f"   - Telemetry: iot/telemetry/+")
+        if args.enable_llm:
+            print(f"   - Analysis: iot/analysis/+")
+            print(f"   - Metrics: iot/metrics/+")
         print(f"🔗 MQTT Broker: localhost:1883")
     else:
         print(f"   2. Customize config/config.json if needed")
         print(f"   3. Run: docker compose up --build")
-    print(f"\n📊 Generated {args.devices} devices {'with MQTT telemetry' if mqtt_enabled else 'without MQTT'}")
+    
+    status_msg = f"{'with MQTT telemetry' if mqtt_enabled else 'without MQTT'}"
+    if args.enable_llm:
+        status_msg += f" and LLM inference ({args.llm_model})"
+        if llm_devices:
+            status_msg += f" on devices {llm_devices}"
+    
+    print(f"\n📊 Generated {args.devices} devices {status_msg}")
+    
+    if args.enable_llm:
+        print(f"\n⚠️  LLM Warning:")
+        print(f"   - First run will download the model (~2-7GB depending on model)")
+        print(f"   - Model loading may take several minutes per device")
+        print(f"   - Ensure sufficient disk space and memory")
+        print(f"   - Metrics will be saved to ./metrics/<device-name>/")
 
 
 if __name__ == '__main__':

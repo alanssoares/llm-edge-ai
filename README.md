@@ -1,13 +1,17 @@
 # llm-edge-ai
-A simulation of local devices as raspberry phi with sensors
+A simulation of local edge devices (Raspberry Pi) with IoT sensors and integrated LLM inference capabilities
 
 ## Overview
 
-This project simulates a scalable network of Raspberry Pi 3 devices using Docker Compose. The setup can scale from a few devices to thousands, making it perfect for testing and development of edge computing scenarios.
+This project simulates a scalable network of Raspberry Pi 3 devices using Docker Compose. The setup can scale from a few devices to thousands, making it perfect for testing and development of edge computing scenarios. Now includes **on-device LLM inference** for intelligent IoT data analysis with comprehensive performance metrics.
 
 ## Key Features
 
 - **Scalable Architecture**: Easily configure 10 to 1000+ devices
+- **MQTT Telemetry**: Real-time sensor data streaming via MQTT
+- **🤖 LLM Inference on Edge**: Run Phi-3.5-mini-instruct or other models directly on each device
+- **📊 Performance Metrics**: Track inference time, memory usage, CPU utilization, and energy consumption
+- **🔄 Model Comparison**: Test and compare different LLM models for edge deployment
 - **Dynamic Generation**: Python script generates docker-compose.yml for any number of devices
 - **Shared Configuration**: Single configuration file shared across all devices
 - **Internal Network**: All devices connected via a bridge network (172.20.0.0/16)
@@ -22,42 +26,57 @@ This project simulates a scalable network of Raspberry Pi 3 devices using Docker
 
 ## Quick Start
 
-### 1. Generate docker-compose.yml
-
-Generate a configuration with your desired number of devices:
+### Basic Setup (Without LLM)
 
 ```bash
-# Generate with 10 devices (default)
-python3 scripts/generate-compose.py --devices 10
+# Generate configuration with 5 devices
+python src/generate_compose.py --devices 5
 
-# Generate with 50 devices
-python3 scripts/generate-compose.py --devices 50
-
-# Generate with 1000 devices
-python3 scripts/generate-compose.py --devices 1000
-```
-
-### 2. Start the devices
-
-```bash
 # Start all devices
 docker compose up -d
-```
 
-### 3. Verify and interact
-
-```bash
 # View running devices
 docker compose ps
 
+# Monitor MQTT telemetry
+python src/mqtt_consumer.py
+
+# Stop all devices
+docker compose down
+```
+
+### 🤖 Quick Start with LLM Inference
+
+```bash
+# Generate configuration with LLM enabled on device 1
+python src/generate_compose.py --devices 3 --enable-llm --llm-devices "1"
+
+# Start the system (first run downloads model ~7GB)
+docker compose up --build
+
+# In another terminal, monitor LLM analysis
+docker exec -it mqtt-broker mosquitto_sub -t "iot/analysis/#"
+
+# View metrics
+cat metrics/edge-device-01/*.json
+```
+
+**For detailed LLM setup and model comparison guide, see [docs/QUICKSTART_LLM.md](docs/QUICKSTART_LLM.md)**
+
+### Standard Device Interaction
+
+```bash
 # Check logs of a specific device
 docker compose logs edge-device-01
+
+# Follow logs in real-time
+docker logs -f edge-device-01
 
 # Access a device shell
 docker exec -it edge-device-01 /bin/bash
 
-# Stop all devices
-docker compose down
+# View resource usage
+docker stats edge-device-01
 ```
 
 ## Configuration
@@ -101,9 +120,69 @@ All devices share the same base configuration located in `config/config.json`:
 
 Each device receives unique identifiers via environment variables:
 - `DEVICE_NAME`: Unique device name (e.g., edge-device-01)
-- `DEVICE_ID`: Unique device ID (e.g., 01)
+- `DEVICE_ID`: Unique device ID (MAC address from dataset)
+- `MQTT_BROKER`: MQTT broker hostname
+- `MQTT_PORT`: MQTT broker port
 
-These are automatically set when generating the docker-compose.yml.
+### LLM Configuration
+
+Enable and configure LLM inference per device:
+- `ENABLE_LLM`: Set to `true` to enable LLM inference
+- `LLM_MODEL_NAME`: Hugging Face model identifier (default: `microsoft/Phi-3.5-mini-instruct`)
+- `LLM_INFERENCE_INTERVAL`: Run inference every N messages (default: 5)
+- `LLM_MAX_LENGTH`: Maximum token length (default: 512)
+- `LLM_TEMPERATURE`: Sampling temperature (default: 0.7)
+
+These are automatically set when generating the docker-compose.yml with `--enable-llm` flag.
+
+## LLM Inference Features
+
+### Supported Models
+
+The system supports any Hugging Face causal language model. Tested models:
+- **Phi-3.5-mini-instruct** (default) - Optimized for edge, ~7B params
+- **TinyLlama-1.1B** - Lightweight for resource-constrained devices
+- **Phi-3-mini-4k** - Compact variant of Phi-3
+- **Gemma-2b** - Google's efficient small model
+
+### Performance Metrics
+
+Each inference automatically collects:
+- ⏱️ **Inference Time**: Milliseconds per inference
+- 💾 **Memory Usage**: RAM consumption in MB
+- 🖥️ **CPU Utilization**: Average CPU percentage during inference
+- ⚡ **Energy Consumption**: Estimated energy in millijoules
+
+### Comparing Models
+
+```bash
+# Test Phi-3.5
+python src/generate_compose.py --devices 1 --enable-llm --llm-model "microsoft/Phi-3.5-mini-instruct"
+docker compose up --build
+# Let run for 30 minutes, then: docker compose down
+
+# Test TinyLlama
+python src/generate_compose.py --devices 1 --enable-llm --llm-model "TinyLlama/TinyLlama-1.1B-Chat-v1.0"
+docker compose up --build
+# Let run for 30 minutes, then: docker compose down
+
+# Compare results
+python scripts/analyze_metrics.py --compare --export-csv comparison.csv
+```
+
+### MQTT Topics
+
+When LLM is enabled, additional topics are available:
+- `iot/telemetry/{device_id}` - Raw sensor data
+- `iot/analysis/{device_id}` - LLM analysis results
+- `iot/metrics/{device_id}` - Inference performance metrics
+- `iot/metrics/{device_id}/summary` - Aggregated statistics
+
+### Documentation
+
+- **[Quick Start Guide](docs/QUICKSTART_LLM.md)** - Get started with LLM in 5 minutes
+- **[Full LLM Documentation](docs/LLM_INFERENCE.md)** - Complete guide to LLM features
+- **[Metrics Analysis Tool](scripts/analyze_metrics.py)** - Compare model performance
 
 ## Network Configuration
 
@@ -166,16 +245,28 @@ docker compose stop edge-device-01
 
 ```
 llm-edge-ai/
-├── src/                      # Source code
-│   ├── device_simulator.py   # IoT device simulator
-│   ├── mqtt_consumer.py      # MQTT telemetry consumer
-│   └── generate_compose.py   # Docker compose generator
-├── tests/                    # Unit tests
-├── scripts/                  # Entry point scripts
-├── config/                   # Configuration files
-├── dataset/                  # IoT telemetry dataset
-├── docs/                     # Additional documentation
-└── docker-compose.yml        # Generated compose file
+├── src/                        # Source code
+│   ├── device_simulator.py     # IoT device simulator with LLM
+│   ├── llm_inference.py        # LLM inference engine
+│   ├── mqtt_consumer.py        # MQTT telemetry consumer
+│   └── generate_compose.py     # Docker compose generator with LLM support
+├── scripts/                    # Utility scripts
+│   ├── generate-compose.py     # Entry point for compose generation
+│   └── analyze_metrics.py      # LLM metrics analysis and comparison
+├── tests/                      # Unit tests
+├── config/                     # Configuration files
+│   ├── config.json             # Device configuration
+│   └── mosquitto.conf          # MQTT broker configuration
+├── dataset/                    # IoT telemetry dataset
+│   └── iot_telemetry_data.csv  # Real sensor data
+├── docs/                       # Documentation
+│   ├── QUICKSTART_LLM.md       # Quick start guide for LLM
+│   ├── LLM_INFERENCE.md        # Complete LLM documentation
+│   └── MQTT_SIMULATION.md      # MQTT setup guide
+├── metrics/                    # LLM inference metrics (generated)
+│   └── edge-device-XX/         # Per-device metrics
+├── requirements.txt            # Python dependencies (including LLM)
+└── docker-compose.yml          # Generated compose file
 ```
 
 ## Customization

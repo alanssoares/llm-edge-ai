@@ -4,3 +4,12 @@ pandas==1.5.3
 python-dotenv==1.0.0
 numpy==1.24.3
 PyYAML>=6.0
+
+# LLM and ML dependencies
+transformers>=4.35.0
+torch>=2.0.0
+accelerate>=0.24.0
+
+# Metrics and monitoring
+psutil>=5.9.0
+py-cpuinfo>=9.0.0
